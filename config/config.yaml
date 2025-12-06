@@ -1,0 +1,70 @@
+# AI Trader Configuration
+
+# Trading settings
+trading:
+  mode: "paper"  # paper | backtest | live (NEVER use live without confirmation)
+  symbols:
+    - "AAPL"
+    - "MSFT"
+    - "GOOGL"
+    - "AMZN"
+    - "TSLA"
+  max_positions: 5
+  position_size_pct: 0.20  # 20% of portfolio per position
+
+# Risk Management
+risk:
+  stop_loss_pct: 0.05  # 5% stop loss
+  take_profit_pct: 0.10  # 10% take profit
+  max_daily_loss_pct: 0.03  # 3% max daily loss
+  trailing_stop: true
+  trailing_stop_pct: 0.03
+
+# Strategy settings
+strategy:
+  name: "momentum"  # momentum | mean_reversion | ai_hybrid
+  timeframe: "1d"
+  indicators:
+    rsi:
+      period: 14
+      oversold: 30
+      overbought: 70
+    macd:
+      fast: 12
+      slow: 26
+      signal: 9
+    bollinger:
+      period: 20
+      std_dev: 2
+
+# AI settings
+ai:
+  provider: "deepseek"  # deepseek | groq
+  model: "deepseek-chat"
+  temperature: 0.3
+  max_tokens: 1000
+  sentiment_weight: 0.3  # Weight of AI sentiment in final decision
+
+# Data settings
+data:
+  cache_enabled: true
+  cache_ttl_hours: 1
+  history_period: "1y"
+
+# Scheduling
+schedule:
+  market_check_interval_minutes: 5
+  news_check_interval_hours: 1
+  fundamentals_update_hours: 24
+
+# Logging
+logging:
+  level: "INFO"
+  file: "logs/trader.log"
+  max_size_mb: 10
+  backup_count: 5
+
+# Dashboard
+dashboard:
+  port: 8501
+  refresh_interval_seconds: 30

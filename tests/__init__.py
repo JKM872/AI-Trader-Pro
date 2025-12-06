@@ -1,0 +1,3 @@
+"""
+AI Trader Test Suite
+"""

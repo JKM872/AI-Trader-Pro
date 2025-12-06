@@ -1,0 +1,232 @@
+/* TradingView Style - AI Trader Dashboard */
+
+/* Variables */
+:root {
+    --bg-color: #131722;
+    --card-bg: #1e222d;
+    --text-primary: #d1d4dc;
+    --text-secondary: #787b86;
+    --border-color: #2a2e39;
+    --accent-buy: #089981;
+    --accent-sell: #f23645;
+    --brand-blue: #2962ff;
+}
+
+/* Global Streamlit Overrides */
+.stApp {
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+/* Remove top padding */
+.block-container {
+    padding-top: 1rem !important;
+    padding-bottom: 5rem !important;
+}
+
+/* Sidebar Styling */
+[data-testid="stSidebar"] {
+    background-color: var(--card-bg);
+    border-right: 1px solid var(--border-color);
+}
+
+[data-testid="stSidebar"] hr {
+    border-color: var(--border-color);
+}
+
+/* Custom Navigation Menu */
+.stRadio>div {
+    background-color: transparent !important;
+}
+
+/* Base Style for Menu Options */
+.stRadio div[role="radiogroup"]>label {
+    background-color: transparent !important;
+    border: 1px solid transparent;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    color: var(--text-secondary);
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    /* Better alignment */
+    align-items: center;
+}
+
+/* Hover State */
+.stRadio div[role="radiogroup"]>label:hover {
+    background-color: rgba(42, 46, 57, 0.5) !important;
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+/* Selected State - High Visibility */
+/* Using :has to target the label that contains the checked radio div */
+.stRadio div[role="radiogroup"]>label:has(div[role="radio"][aria-checked="true"]) {
+    background-color: var(--brand-blue) !important;
+    color: #ffffff !important;
+    border-color: var(--brand-blue);
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(41, 98, 255, 0.3);
+}
+
+/* Hide the default radio circle/input */
+.stRadio div[role="radiogroup"] label div[role="radio"] {
+    display: none;
+}
+
+/* Text Styling inside the option */
+.stRadio div[role="radiogroup"] label p {
+    font-size: 1.05rem !important;
+    /* Slightly larger */
+    margin: 0;
+    line-height: 1.2;
+}
+
+/* Custom Metric Card */
+.tv-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 12px;
+    transition: transform 0.2s;
+}
+
+.tv-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--text-secondary);
+}
+
+.tv-card-title {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-bottom: 4px;
+}
+
+.tv-card-value {
+    color: var(--text-primary);
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.tv-card-delta {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.delta-up {
+    color: var(--accent-buy);
+}
+
+.delta-down {
+    color: var(--accent-sell);
+}
+
+/* Ticker Tape */
+.ticker-tape {
+    width: 100%;
+    overflow: hidden;
+    background-color: var(--card-bg);
+    border-bottom: 1px solid var(--border-color);
+    white-space: nowrap;
+    box-sizing: border-box;
+    padding: 8px 0;
+}
+
+.ticker-content {
+    display: inline-block;
+    padding-left: 100%;
+    animation: ticker 30s linear infinite;
+}
+
+.ticker-item {
+    display: inline-block;
+    padding: 0 20px;
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+.ticker-positive {
+    color: var(--accent-buy);
+}
+
+.ticker-negative {
+    color: var(--accent-sell);
+}
+
+@keyframes ticker {
+    0% {
+        transform: translate(0, 0);
+    }
+
+    100% {
+        transform: translate(-100%, 0);
+    }
+}
+
+/* Technical Gauge */
+.tech-gauge {
+    height: 8px;
+    width: 100%;
+    background: linear-gradient(90deg,
+            var(--accent-sell) 0%,
+            var(--accent-sell) 20%,
+            #d1d4dc 45%,
+            #d1d4dc 55%,
+            var(--accent-buy) 80%,
+            var(--accent-buy) 100%);
+    border-radius: 4px;
+    position: relative;
+    margin-top: 10px;
+}
+
+.gauge-needle {
+    width: 4px;
+    height: 12px;
+    background-color: #fff;
+    position: absolute;
+    top: -2px;
+    border-radius: 2px;
+    transition: left 0.5s ease;
+}
+
+/* Hide standard Streamlit elements */
+#MainMenu {
+    visibility: hidden;
+}
+
+footer {
+    visibility: hidden;
+}
+
+/* Input Fields */
+.stTextInput input,
+.stSelectbox,
+.stNumberInput input {
+    color: var(--text-primary) !important;
+    background-color: #2a2e39 !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 4px !important;
+}
+
+/* Tab styling */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 20px;
+    background-color: transparent;
+}
+
+.stTabs [data-baseweb="tab"] {
+    height: 40px;
+    background-color: transparent;
+    border: none;
+    color: var(--text-secondary);
+}
+
+.stTabs [data-baseweb="tab"][aria-selected="true"] {
+    color: var(--brand-blue);
+    border-bottom: 2px solid var(--brand-blue);
+}

@@ -1,0 +1,76 @@
+# AI Trader - Dependencies
+# Install with: pip install -r requirements.txt
+
+# Data fetching
+yfinance>=0.2.36
+alpha-vantage>=2.3.1
+requests>=2.31.0
+feedparser>=6.0.10  # RSS feeds for news
+
+# Technical Analysis
+pandas>=2.1.4
+pandas-ta>=0.3.14b
+numpy>=1.26.3
+scipy>=1.11.0  # Statistical functions
+
+# AI Integration
+openai>=1.6.1  # For Deepseek/Groq compatible API
+anthropic>=0.18.0  # Anthropic Claude
+httpx>=0.26.0
+groq>=0.4.0  # Groq API
+
+# Machine Learning - Core
+scikit-learn>=1.3.0  # ML algorithms
+joblib>=1.3.0  # Model serialization
+
+# Machine Learning - Deep Learning (Optional)
+# Uncomment if using Transformer/RL features:
+# torch>=2.0.0
+# transformers>=4.30.0
+# sentence-transformers>=2.2.0
+
+# Reinforcement Learning (Optional)
+# Uncomment for RL trading features:
+# stable-baselines3>=2.0.0
+# gymnasium>=0.28.0
+# shimmy>=1.0.0
+
+# Explainable AI (Optional)
+# Uncomment for XAI features:
+# shap>=0.42.0
+# lime>=0.2.0
+
+# Portfolio Optimization
+# cvxpy>=1.3.0  # Convex optimization (optional)
+
+# Paper Trading
+alpaca-trade-api>=3.0.2
+
+# Backtesting
+backtrader>=1.9.78
+
+# Dashboard
+streamlit>=1.29.0
+plotly>=5.18.0
+altair>=5.0.0
+
+# Database
+sqlalchemy>=2.0.25
+
+# Utilities
+python-dotenv>=1.0.0
+pyyaml>=6.0.1
+schedule>=1.2.1
+cachetools>=5.3.0  # Caching utilities
+
+# Logging & Monitoring
+loguru>=0.7.2
+
+# Testing
+pytest>=7.4.4
+pytest-asyncio>=0.23.3
+pytest-cov>=4.1.0  # Coverage reporting
+
+# Alerts & Notifications
+python-telegram-bot>=20.7  # Telegram bot
+discord-webhook>=1.3.0  # Discord webhooks
