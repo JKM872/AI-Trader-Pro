@@ -25,6 +25,7 @@ from trader.strategies.scanner import SignalScanner, get_signal_summary, ScoredS
 from trader.analysis.indicators import TradingViewIndicators
 from trader.backtest.backtester import Backtester
 from trader.data.investor_tracker import PortfolioTracker, FAMOUS_INVESTORS, get_investor_summary
+from trader.analysis.opportunity_scorer import OpportunityScorer, get_top_opportunities
 
 
 # Page configuration
@@ -489,6 +490,176 @@ def run_investors_page(default_symbols):
         else:
             st.warning("Please select at least one symbol.")
 
+def run_opportunity_page(default_symbols):
+    """Opportunity Finder - Multi-factor stock screening and scoring."""
+    st.title("🎯 Opportunity Finder")
+    st.markdown("Find high-probability trades using multi-factor analysis.")
+    
+    # Sidebar filters
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("🔧 Filters")
+    
+    min_score = st.sidebar.slider("Min Opportunity Score", 0, 100, 50)
+    
+    # Extended watchlist
+    extended_symbols = default_symbols + ['AMD', 'INTC', 'PLTR', 'COIN', 'ABNB', 'UBER', 'SNAP', 'SQ', 'PYPL', 'DIS', 'NFLX', 'BA', 'JPM', 'GS']
+    
+    selected = st.multiselect(
+        "Select stocks to analyze",
+        extended_symbols,
+        default=extended_symbols[:6]
+    )
+    
+    if st.button("🚀 Find Opportunities", type="primary"):
+        if not selected:
+            st.warning("Please select at least one stock.")
+            return
+        
+        scorer = OpportunityScorer()
+        results = []
+        
+        progress = st.progress(0)
+        status = st.empty()
+        
+        for i, symbol in enumerate(selected):
+            status.text(f"Analyzing {symbol}...")
+            try:
+                score = scorer.score_stock(symbol)
+                if score.total_score >= min_score:
+                    results.append(score)
+            except Exception as e:
+                st.warning(f"Failed to analyze {symbol}: {e}")
+            progress.progress((i + 1) / len(selected))
+        
+        status.empty()
+        progress.empty()
+        
+        if not results:
+            st.info(f"No stocks found with score >= {min_score}")
+            return
+        
+        # Sort by score
+        results.sort(key=lambda x: x.total_score, reverse=True)
+        
+        # Summary metrics
+        st.subheader("📊 Results Summary")
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            display_tv_card("Stocks Analyzed", str(len(selected)))
+        with c2:
+            display_tv_card("Opportunities Found", str(len(results)))
+        with c3:
+            avg_score = sum(r.total_score for r in results) / len(results) if results else 0
+            display_tv_card("Avg Score", f"{avg_score:.0f}")
+        
+        st.markdown("---")
+        
+        # Display each opportunity
+        for score in results:
+            with st.expander(f"{score.recommendation} | {score.symbol} - Score: {score.total_score}/100", expanded=True):
+                # Main score gauge
+                col1, col2 = st.columns([1, 2])
+                
+                with col1:
+                    # Score visualization
+                    st.markdown(f"""
+                    <div style="text-align:center; padding:20px;">
+                        <div style="font-size:3rem; font-weight:bold; color:{score.color};">{score.total_score}</div>
+                        <div style="font-size:1.2rem; color:{score.color};">{score.recommendation}</div>
+                        <div style="margin-top:10px;">
+                            <span style="color:#787b86;">Risk: </span>
+                            <span style="color:{'#f23645' if score.risk_level == 'High' else '#ff9800' if score.risk_level == 'Medium' else '#089981'};">
+                                {score.risk_level}
+                            </span>
+                        </div>
+                        <div style="color:#787b86; font-size:0.9rem; margin-top:5px;">Vol: {score.volatility:.0%}</div>
+                        <div style="color:#2962ff; font-size:0.9rem; margin-top:5px;">Position: {score.suggested_position_pct}%</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with col2:
+                    # Factor breakdown
+                    st.markdown("**Factor Breakdown:**")
+                    
+                    factors = [
+                        ("Fundamentals", score.fundamentals_score, 30),
+                        ("Technicals", score.technicals_score, 30),
+                        ("Sentiment", score.sentiment_score, 20),
+                        ("Guru Holdings", score.guru_score, 10),
+                        ("Earnings", score.earnings_score, 10),
+                    ]
+                    
+                    for name, value, weight in factors:
+                        color = "#089981" if value >= 60 else "#ff9800" if value >= 40 else "#f23645"
+                        st.markdown(f"""
+                        <div style="display:flex; align-items:center; margin-bottom:5px;">
+                            <div style="width:120px; color:#d1d4dc;">{name} ({weight}%)</div>
+                            <div style="flex:1; background:#2a2e39; height:20px; border-radius:4px; overflow:hidden;">
+                                <div style="width:{value}%; height:100%; background:{color};"></div>
+                            </div>
+                            <div style="width:40px; text-align:right; color:#d1d4dc;">{value:.0f}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                
+                # Details tabs
+                tabs = st.tabs(["📈 Technicals", "💰 Fundamentals", "📰 Sentiment", "🏆 Gurus"])
+                
+                with tabs[0]:
+                    tech = score.technicals_details
+                    if tech:
+                        cols = st.columns(4)
+                        with cols[0]:
+                            rsi = tech.get('rsi', 'N/A')
+                            rsi_color = "#089981" if isinstance(rsi, (int, float)) and rsi < 40 else "#f23645" if isinstance(rsi, (int, float)) and rsi > 60 else "#787b86"
+                            st.markdown(f"**RSI:** <span style='color:{rsi_color}'>{rsi}</span>", unsafe_allow_html=True)
+                        with cols[1]:
+                            st.markdown(f"**MACD:** {tech.get('macd_signal', 'N/A')}")
+                        with cols[2]:
+                            st.markdown(f"**Trend:** {tech.get('trend', 'N/A')}")
+                        with cols[3]:
+                            st.markdown(f"**Volume:** {tech.get('volume_spike', 'N/A')}")
+                
+                with tabs[1]:
+                    fund = score.fundamentals_details
+                    if fund:
+                        cols = st.columns(4)
+                        with cols[0]:
+                            st.metric("P/E Ratio", fund.get('pe_ratio', 'N/A'))
+                        with cols[1]:
+                            st.metric("Revenue Growth", fund.get('revenue_growth', 'N/A'))
+                        with cols[2]:
+                            st.metric("Profit Margin", fund.get('profit_margin', 'N/A'))
+                        with cols[3]:
+                            st.metric("Debt/Equity", fund.get('debt_to_equity', 'N/A'))
+                
+                with tabs[2]:
+                    sent = score.sentiment_details
+                    if sent:
+                        cols = st.columns(3)
+                        with cols[0]:
+                            signal = sent.get('insider_signal', 'N/A')
+                            color = "#089981" if signal == "Bullish" else "#f23645" if signal == "Bearish" else "#787b86"
+                            st.markdown(f"**Insider Signal:** <span style='color:{color}'>{signal}</span>", unsafe_allow_html=True)
+                        with cols[1]:
+                            st.markdown(f"**Insider Buys:** {sent.get('insider_buys', 0)}")
+                        with cols[2]:
+                            st.markdown(f"**Insider Sells:** {sent.get('insider_sells', 0)}")
+                
+                with tabs[3]:
+                    guru = score.guru_details
+                    if guru:
+                        guru_count = guru.get('guru_count', 0)
+                        if guru_count > 0:
+                            st.success(f"🌟 Held by {guru_count} famous investor(s)!")
+                            gurus = guru.get('gurus', [])
+                            for g in gurus:
+                                st.markdown(f"- {g}")
+                        else:
+                            st.info("Not held by tracked famous investors.")
+                        
+                        inst_pct = guru.get('institutional_pct', 'N/A')
+                        st.markdown(f"**Institutional Ownership:** {inst_pct}")
+
 # --- Main App ---
 
 def main():
@@ -502,6 +673,7 @@ def main():
     
     menu_options = [
         "🖥️ Terminal", 
+        "🎯 Opportunity",
         "⚡ Scanner", 
         "🔎 Screeners", 
         "🏆 Investors",
@@ -519,6 +691,8 @@ def main():
     
     if menu == "🖥️ Terminal":
         run_single_stock_page(default_symbols)
+    elif menu == "🎯 Opportunity":
+        run_opportunity_page(default_symbols)
     elif menu == "⚡ Scanner":
         run_scanner_page(default_symbols)
     elif menu == "🔎 Screeners":
