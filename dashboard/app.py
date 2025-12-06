@@ -24,6 +24,7 @@ from trader.strategies.smart_money import SmartMoneyStrategy, MultiTimeframeStra
 from trader.strategies.scanner import SignalScanner, get_signal_summary, ScoredSignal
 from trader.analysis.indicators import TradingViewIndicators
 from trader.backtest.backtester import Backtester
+from trader.data.investor_tracker import PortfolioTracker, FAMOUS_INVESTORS, get_investor_summary
 
 
 # Page configuration
@@ -409,6 +410,85 @@ def run_portfolio(default_symbols):
     # Simple placeholder redesign
     st.info("Portfolio View - Work in Progress in Redesign Mode")
 
+def run_investors_page(default_symbols):
+    """Famous Investor Portfolios page."""
+    st.title("🏆 Famous Investor Portfolios")
+    st.markdown("Track what legendary investors are holding via SEC 13F filings.")
+    
+    # Get investor summary
+    summary = get_investor_summary()
+    
+    # Display investor cards
+    st.subheader("📊 Tracked Investors")
+    
+    cols = st.columns(3)
+    for i, inv in enumerate(summary["investors"]):
+        with cols[i % 3]:
+            st.markdown(f"""
+            <div class="tv-card">
+                <div class="tv-card-title">{inv['fund']}</div>
+                <div class="tv-card-value">{inv['name']}</div>
+                <div style="font-size:0.8rem; color:#787b86; margin-top:5px;">{inv['strategy']}</div>
+                <div style="font-size:0.75rem; color:#565a66; margin-top:3px;">{inv['description']}</div>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # Check which stocks from watchlist are held by gurus
+    st.subheader("🔍 Check Your Watchlist")
+    st.markdown("See which of your stocks are held by famous investors.")
+    
+    selected_symbols = st.multiselect(
+        "Select symbols to check",
+        default_symbols + ['AMD', 'INTC', 'PLTR', 'COIN', 'ABNB'],
+        default=default_symbols[:4]
+    )
+    
+    if st.button("🔎 Check Institutional Ownership"):
+        if selected_symbols:
+            tracker = PortfolioTracker()
+            try:
+                for symbol in selected_symbols:
+                    with st.expander(f"📈 {symbol}", expanded=True):
+                        ownership = tracker.get_stock_institutional_owners(symbol)
+                        
+                        if "error" in ownership:
+                            st.warning(f"Could not fetch data: {ownership['error']}")
+                            continue
+                        
+                        # Major holders summary
+                        major = ownership.get("major_holders", {})
+                        if major:
+                            c1, c2, c3 = st.columns(3)
+                            with c1:
+                                display_tv_card("Insiders", str(major.get('insiders_pct', 'N/A')))
+                            with c2:
+                                display_tv_card("Institutions", str(major.get('institutions_pct', 'N/A')))
+                            with c3:
+                                display_tv_card("# Institutions", str(major.get('institutions_count', 'N/A')))
+                        
+                        # Famous investors
+                        famous = ownership.get("famous_investors", [])
+                        if famous:
+                            st.success(f"🌟 Held by {len(famous)} famous investor(s)!")
+                            for inv in famous:
+                                st.markdown(f"- **{inv['investor']}** ({inv['fund']}): {inv.get('shares', 'N/A'):,} shares")
+                        else:
+                            st.info("No famous investors detected in top holders.")
+                        
+                        # Top institutional holders
+                        inst = ownership.get("institutional_holders", [])
+                        if inst:
+                            st.markdown("**Top Institutional Holders:**")
+                            df = pd.DataFrame(inst[:10])
+                            if not df.empty:
+                                st.dataframe(df, use_container_width=True)
+            finally:
+                tracker.close()
+        else:
+            st.warning("Please select at least one symbol.")
+
 # --- Main App ---
 
 def main():
@@ -424,6 +504,7 @@ def main():
         "🖥️ Terminal", 
         "⚡ Scanner", 
         "🔎 Screeners", 
+        "🏆 Investors",
         "🧪 Backtest", 
         "💼 Portfolio"
     ]
@@ -442,10 +523,10 @@ def main():
         run_scanner_page(default_symbols)
     elif menu == "🔎 Screeners":
         run_charts_page(default_symbols)
+    elif menu == "🏆 Investors":
+        run_investors_page(default_symbols)
     elif menu == "🧪 Backtest":
         st.title("Strategy Tester")
-        from trader.backtest.backtester import Backtester # Lazy import
-        # Re-use simplified backtest logic
         run_single_stock_page(default_symbols) # Placeholder for demo
     else:
         run_portfolio(default_symbols)
