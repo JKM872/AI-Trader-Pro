@@ -376,6 +376,87 @@ class TelegramAlert:
         
         return self.send_message(message)
     
+    def send_opportunity_alert(
+        self,
+        symbol: str,
+        score: float,
+        recommendation: str,
+        fundamentals_score: float,
+        technicals_score: float,
+        sentiment_score: float,
+        guru_score: float,
+        earnings_score: float,
+        risk_level: str,
+        volatility: float,
+        suggested_position: float,
+    ) -> bool:
+        """
+        Send opportunity score alert.
+        
+        Args:
+            symbol: Stock symbol
+            score: Total opportunity score (0-100)
+            recommendation: Recommendation text (Strong Buy, Buy, etc.)
+            fundamentals_score: Fundamentals component score
+            technicals_score: Technicals component score
+            sentiment_score: Sentiment component score
+            guru_score: Guru holdings component score
+            earnings_score: Earnings component score
+            risk_level: Risk level (Low/Medium/High)
+            volatility: Annualized volatility
+            suggested_position: Suggested position size %
+            
+        Returns:
+            True if notification was sent
+        """
+        # Emoji based on recommendation
+        emoji_map = {
+            "Strong Buy": "🚀",
+            "Buy": "📈",
+            "Hold": "⏸️",
+            "Avoid": "⚠️",
+            "High Risk": "🔴",
+        }
+        emoji = emoji_map.get(recommendation, "📊")
+        
+        # Color indicator for score
+        if score >= 80:
+            score_bar = "🟢🟢🟢🟢🟢"
+        elif score >= 60:
+            score_bar = "🟢🟢🟢🟢⚪"
+        elif score >= 40:
+            score_bar = "🟢🟢🟢⚪⚪"
+        elif score >= 20:
+            score_bar = "🟢🟢⚪⚪⚪"
+        else:
+            score_bar = "🟢⚪⚪⚪⚪"
+        
+        risk_emoji = {"Low": "🟢", "Medium": "🟡", "High": "🔴"}.get(risk_level, "⚪")
+        
+        message = f"""
+{emoji} <b>OPPORTUNITY ALERT</b> {emoji}
+
+<b>Symbol:</b> {symbol}
+<b>Score:</b> {score:.0f}/100 {score_bar}
+<b>Recommendation:</b> {recommendation}
+
+<b>Factor Breakdown:</b>
+  📊 Fundamentals: {fundamentals_score:.0f}/100
+  📈 Technicals: {technicals_score:.0f}/100
+  📰 Sentiment: {sentiment_score:.0f}/100
+  🏆 Guru Holdings: {guru_score:.0f}/100
+  💰 Earnings: {earnings_score:.0f}/100
+
+<b>Risk Assessment:</b>
+  {risk_emoji} Risk Level: {risk_level}
+  📉 Volatility: {volatility:.0%}
+  💵 Suggested Position: {suggested_position:.1f}%
+
+⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+"""
+        
+        return self.send_message(message)
+    
     def test_connection(self) -> bool:
         """Test Telegram bot connection."""
         if not self.is_configured:

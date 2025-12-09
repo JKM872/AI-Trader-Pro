@@ -833,6 +833,32 @@ def run_opportunity_page(default_symbols):
                         
                         inst_pct = guru.get('institutional_pct', 'N/A')
                         st.markdown(f"**Institutional Ownership:** {inst_pct}")
+                
+                # Telegram Alert Button
+                st.markdown("---")
+                if st.button(f"📱 Send Telegram Alert for {score.symbol}", key=f"tg_{score.symbol}"):
+                    from trader.alerts.telegram_bot import TelegramAlert
+                    telegram = TelegramAlert()
+                    if telegram.is_configured:
+                        success = telegram.send_opportunity_alert(
+                            symbol=score.symbol,
+                            score=score.total_score,
+                            recommendation=score.recommendation,
+                            fundamentals_score=score.fundamentals_score,
+                            technicals_score=score.technicals_score,
+                            sentiment_score=score.sentiment_score,
+                            guru_score=score.guru_score,
+                            earnings_score=score.earnings_score,
+                            risk_level=score.risk_level,
+                            volatility=score.volatility,
+                            suggested_position=score.suggested_position_pct,
+                        )
+                        if success:
+                            st.success("✅ Alert sent to Telegram!")
+                        else:
+                            st.error("❌ Failed to send alert")
+                    else:
+                        st.warning("⚠️ Telegram not configured. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env")
 
 # --- Main App ---
 
