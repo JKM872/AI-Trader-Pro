@@ -514,33 +514,44 @@ def run_portfolio(default_symbols):
     with col1:
         st.subheader("📋 Holdings")
         
-        # Create DataFrame for display
+        # Interactive Dataframe for Holdings
         df = pd.DataFrame(portfolio_data)
         
-        # Format P&L with colors
-        for i, row in df.iterrows():
-            pnl = row["P&L"]
-            pnl_pct = row["P&L %"]
-            color = "#089981" if pnl >= 0 else "#f23645"
+        # Configure columns for better display
+        st.dataframe(
+            df,
+            column_config={
+                "Symbol": st.column_config.TextColumn("Ticker", width="small"),
+                "Shares": st.column_config.NumberColumn("Qty", format="%d"),
+                "Entry": st.column_config.TextColumn("Entry Price"),
+                "Current": st.column_config.TextColumn("Current Price"),
+                "Cost": st.column_config.NumberColumn("Cost Basis", format="$%.2f"),
+                "Value": st.column_config.NumberColumn("Market Value", format="$%.2f"),
+                "P&L": st.column_config.NumberColumn("P&L ($)", format="$%.2f"),
+                "P&L %": st.column_config.NumberColumn("P&L (%)", format="%.2f%%"),
+            },
+            hide_index=True,
+            use_container_width=True
+        )
+        
+        # Close positions section
+        st.markdown("### Manage Positions")
+        with st.expander("🗑️ Close Positions"):
+            to_close = st.multiselect(
+                "Select positions to close",
+                options=[p["Symbol"] for p in portfolio_data],
+                format_func=lambda x: f"{x} ({next((p['Shares'] for p in portfolio_data if p['Symbol'] == x), 0)} shares)"
+            )
             
-            with st.container():
-                cols = st.columns([1.5, 1, 1.5, 1.5, 2, 1])
-                with cols[0]:
-                    st.markdown(f"**{row['Symbol']}**")
-                with cols[1]:
-                    st.markdown(f"{row['Shares']} shares")
-                with cols[2]:
-                    st.markdown(f"Entry: {row['Entry']}")
-                with cols[3]:
-                    st.markdown(f"Now: {row['Current']}")
-                with cols[4]:
-                    st.markdown(f"<span style='color:{color}'>P&L: ${pnl:+,.2f} ({pnl_pct:+.2f}%)</span>", unsafe_allow_html=True)
-                with cols[5]:
-                    if st.button("🗑️", key=f"del_{i}"):
-                        positions.pop(i)
-                        st.session_state.portfolio_positions = positions
-                        st.rerun()
-                st.markdown("---")
+            if st.button("Close Selected Positions", type="primary"):
+                if to_close:
+                    # Filter out closed positions
+                    new_positions = [p for p in positions if p["symbol"] not in to_close]
+                    st.session_state.portfolio_positions = new_positions
+                    st.success(f"Closed {len(to_close)} positions.")
+                    st.rerun()
+                else:
+                    st.warning("Select positions to close first.")
     
     with col2:
         st.subheader("🥧 Allocation")
@@ -715,16 +726,43 @@ def run_opportunity_page(default_symbols):
         # Sort by score
         results.sort(key=lambda x: x.total_score, reverse=True)
         
-        # Summary metrics
-        st.subheader("📊 Results Summary")
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            display_tv_card("Stocks Analyzed", str(len(selected)))
-        with c2:
-            display_tv_card("Opportunities Found", str(len(results)))
-        with c3:
-            avg_score = sum(r.total_score for r in results) / len(results) if results else 0
-            display_tv_card("Avg Score", f"{avg_score:.0f}")
+        # Summary Table with Rich Formatting
+        st.subheader("📊 Analysis Results")
+        
+        # Prepare data for rich dataframe
+        summary_data = []
+        for r in results:
+            summary_data.append({
+                "Symbol": r.symbol,
+                "Score": r.total_score,
+                "Recommendation": r.recommendation,
+                "Risk": r.risk_level,
+                "Vol": f"{r.volatility:.1%}",
+                "Fundamentals": r.fundamentals_score,
+                "Technicals": r.technicals_score
+            })
+        
+        df_summary = pd.DataFrame(summary_data)
+        
+        st.dataframe(
+            df_summary,
+            column_config={
+                "Symbol": st.column_config.TextColumn("Ticker", width="small"),
+                "Score": st.column_config.ProgressColumn(
+                    "Opp Score",
+                    help="Opportunity Score 0-100",
+                    format="%d",
+                    min_value=0,
+                    max_value=100,
+                ),
+                "Recommendation": st.column_config.TextColumn("Rating"),
+                "Risk": st.column_config.TextColumn("Risk Lvl"),
+                "Fundamentals": st.column_config.NumberColumn("Fund Score"),
+                "Technicals": st.column_config.NumberColumn("Tech Score"),
+            },
+            hide_index=True,
+            use_container_width=True
+        )
         
         st.markdown("---")
         

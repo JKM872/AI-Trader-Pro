@@ -230,3 +230,103 @@ footer {
     color: var(--brand-blue);
     border-bottom: 2px solid var(--brand-blue);
 }
+
+/* Table Styling */
+[data-testid="stDataFrame"] {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+}
+
+[data-testid="stDataFrame"] div[role="grid"] {
+    color: var(--text-primary);
+}
+
+/* Button Styling */
+.stButton button {
+    background-color: #2a2e39;
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    transition: all 0.2s;
+}
+
+.stButton button:hover {
+    background-color: #363a45;
+    border-color: var(--text-secondary);
+    color: #ffffff;
+}
+
+/* Primary Button (Use type="primary" in streamlit) */
+.stButton button[kind="primary"] {
+    background-color: var(--brand-blue);
+    color: white;
+    border: none;
+}
+
+.stButton button[kind="primary"]:hover {
+    background-color: #1e54e6;
+    box-shadow: 0 4px 12px rgba(41, 98, 255, 0.4);
+}
+
+/* Expander Styling */
+.streamlit-expanderHeader {
+    background-color: var(--card-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 6px !important;
+    color: var(--text-primary) !important;
+}
+
+.streamlit-expanderContent {
+    background-color: var(--bg-color) !important;
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+    color: var(--text-secondary) !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-color);
+}
+
+::-webkit-scrollbar-thumb {
+    background: #363a45;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #50535e;
+}
+
+/* Sidebar Navigation Icons */
+.sidebar-icon {
+    font-size: 1.2rem;
+    margin-right: 10px;
+    width: 24px;
+    text-align: center;
+}
+
+/* Success/Error/Info boxes */
+.stAlert {
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+/* Tooltips */
+[data-testid="stTooltipIcon"] {
+    color: var(--text-secondary);
+}
+
+/* Adjust Plotly Chart Background */
+.js-plotly-plot .plotly .main-svg {
+    background-color: transparent !important;
+}
