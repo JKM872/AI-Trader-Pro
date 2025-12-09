@@ -407,9 +407,183 @@ def run_charts_page(default_symbols):
     st.plotly_chart(fig, use_container_width=True)
 
 def run_portfolio(default_symbols):
-    st.title("💼 Portfolio")
-    # Simple placeholder redesign
-    st.info("Portfolio View - Work in Progress in Redesign Mode")
+    """Portfolio Tracker - Manage positions and track P&L."""
+    st.title("💼 Portfolio Tracker")
+    st.markdown("Track your positions, P&L, and portfolio allocation.")
+    
+    # Initialize session state for positions
+    if 'portfolio_positions' not in st.session_state:
+        st.session_state.portfolio_positions = [
+            {"symbol": "AAPL", "shares": 10, "entry_price": 175.00},
+            {"symbol": "MSFT", "shares": 5, "entry_price": 380.00},
+            {"symbol": "NVDA", "shares": 8, "entry_price": 450.00},
+        ]
+    
+    positions = st.session_state.portfolio_positions
+    
+    # Add new position section
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("➕ Add Position")
+    
+    with st.sidebar.form("add_position"):
+        new_symbol = st.text_input("Symbol", placeholder="e.g. TSLA")
+        new_shares = st.number_input("Shares", min_value=1, value=10)
+        new_entry = st.number_input("Entry Price ($)", min_value=0.01, value=100.00)
+        
+        if st.form_submit_button("Add Position"):
+            if new_symbol:
+                positions.append({
+                    "symbol": new_symbol.upper(),
+                    "shares": new_shares,
+                    "entry_price": new_entry
+                })
+                st.session_state.portfolio_positions = positions
+                st.rerun()
+    
+    if not positions:
+        st.info("No positions yet. Add one from the sidebar!")
+        return
+    
+    # Fetch current prices and calculate P&L
+    fetcher = DataFetcher()
+    portfolio_data = []
+    total_value = 0
+    total_cost = 0
+    
+    for pos in positions:
+        current_price = fetcher.get_current_price(pos["symbol"])
+        if current_price:
+            cost = pos["shares"] * pos["entry_price"]
+            value = pos["shares"] * current_price
+            pnl = value - cost
+            pnl_pct = (pnl / cost) * 100 if cost > 0 else 0
+            
+            portfolio_data.append({
+                "Symbol": pos["symbol"],
+                "Shares": pos["shares"],
+                "Entry": f"${pos['entry_price']:.2f}",
+                "Current": f"${current_price:.2f}",
+                "Cost": cost,
+                "Value": value,
+                "P&L": pnl,
+                "P&L %": pnl_pct
+            })
+            
+            total_value += value
+            total_cost += cost
+        else:
+            portfolio_data.append({
+                "Symbol": pos["symbol"],
+                "Shares": pos["shares"],
+                "Entry": f"${pos['entry_price']:.2f}",
+                "Current": "N/A",
+                "Cost": pos["shares"] * pos["entry_price"],
+                "Value": 0,
+                "P&L": 0,
+                "P&L %": 0
+            })
+            total_cost += pos["shares"] * pos["entry_price"]
+    
+    total_pnl = total_value - total_cost
+    total_pnl_pct = (total_pnl / total_cost) * 100 if total_cost > 0 else 0
+    
+    # Summary Cards
+    st.subheader("📊 Portfolio Summary")
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        display_tv_card("Total Value", f"${total_value:,.2f}")
+    with c2:
+        display_tv_card("Total Cost", f"${total_cost:,.2f}")
+    with c3:
+        color = "#089981" if total_pnl >= 0 else "#f23645"
+        st.markdown(f"""
+        <div class="tv-card">
+            <div class="tv-card-title">Total P&L</div>
+            <div class="tv-card-value" style="color:{color};">${total_pnl:+,.2f}</div>
+            <div class="tv-card-delta" style="color:{color};">{total_pnl_pct:+.2f}%</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with c4:
+        display_tv_card("Positions", str(len(positions)))
+    
+    st.markdown("---")
+    
+    # Layout: Table and Chart
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.subheader("📋 Holdings")
+        
+        # Create DataFrame for display
+        df = pd.DataFrame(portfolio_data)
+        
+        # Format P&L with colors
+        for i, row in df.iterrows():
+            pnl = row["P&L"]
+            pnl_pct = row["P&L %"]
+            color = "#089981" if pnl >= 0 else "#f23645"
+            
+            with st.container():
+                cols = st.columns([1.5, 1, 1.5, 1.5, 2, 1])
+                with cols[0]:
+                    st.markdown(f"**{row['Symbol']}**")
+                with cols[1]:
+                    st.markdown(f"{row['Shares']} shares")
+                with cols[2]:
+                    st.markdown(f"Entry: {row['Entry']}")
+                with cols[3]:
+                    st.markdown(f"Now: {row['Current']}")
+                with cols[4]:
+                    st.markdown(f"<span style='color:{color}'>P&L: ${pnl:+,.2f} ({pnl_pct:+.2f}%)</span>", unsafe_allow_html=True)
+                with cols[5]:
+                    if st.button("🗑️", key=f"del_{i}"):
+                        positions.pop(i)
+                        st.session_state.portfolio_positions = positions
+                        st.rerun()
+                st.markdown("---")
+    
+    with col2:
+        st.subheader("🥧 Allocation")
+        
+        # Donut chart
+        if portfolio_data and total_value > 0:
+            values = [p["Value"] for p in portfolio_data if p["Value"] > 0]
+            labels = [p["Symbol"] for p in portfolio_data if p["Value"] > 0]
+            
+            if values:
+                fig = go.Figure(data=[go.Pie(
+                    labels=labels,
+                    values=values,
+                    hole=0.5,
+                    marker_colors=['#2962ff', '#089981', '#ff9800', '#f23645', '#00bcd4', '#9c27b0']
+                )])
+                fig.update_layout(
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color='#d1d4dc'),
+                    showlegend=True,
+                    legend=dict(orientation="h", yanchor="bottom", y=-0.2),
+                    margin=dict(l=0, r=0, t=0, b=0),
+                    height=250
+                )
+                st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No data for chart")
+    
+    # Performance metrics
+    st.subheader("📈 Performance Analysis")
+    
+    winners = [p for p in portfolio_data if p["P&L"] > 0]
+    losers = [p for p in portfolio_data if p["P&L"] < 0]
+    
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric("Winners", len(winners))
+    with c2:
+        st.metric("Losers", len(losers))
+    with c3:
+        win_rate = len(winners) / len(portfolio_data) * 100 if portfolio_data else 0
+        st.metric("Win Rate", f"{win_rate:.0f}%")
 
 def run_investors_page(default_symbols):
     """Famous Investor Portfolios page."""
