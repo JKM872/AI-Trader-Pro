@@ -26,6 +26,7 @@ from trader.analysis.indicators import TradingViewIndicators
 from trader.backtest.backtester import Backtester
 from trader.data.investor_tracker import PortfolioTracker, FAMOUS_INVESTORS, get_investor_summary
 from trader.analysis.opportunity_scorer import OpportunityScorer, get_top_opportunities
+from trader.portfolio.paper_trader import PaperAccount, OrderSide
 
 
 # Page configuration
@@ -365,10 +366,46 @@ def run_single_stock_page(default_symbols):
 
 def run_scanner_page(default_symbols):
     st.title("🎯 Market Scanner")
+    
+    # Sidebar Filters
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("🔧 Scanner Filters")
+    
+    min_volume = st.sidebar.number_input("Min Volume (M)", min_value=0.0, value=1.0, step=0.5)
+    min_price = st.sidebar.number_input("Min Price ($)", min_value=0.0, value=1.0)
+    max_price = st.sidebar.number_input("Max Price ($)", min_value=min_price, value=1000.0)
+    
     symbols = st.multiselect("Watchlist", default_symbols + ['AMD', 'INTC', 'NVDA'], default=default_symbols[:4])
-    if st.button("Scan Market"):
+    
+    if st.button("Scan Market", type="primary"):
         scanner = SignalScanner()
-        res = scanner.scan_watchlist(symbols)
+        
+        # Pre-filter symbols
+        fetcher = DataFetcher()
+        filtered_symbols = []
+        
+        with st.spinner("Filtering symbols..."):
+            for sym in symbols:
+                try:
+                    # Get recent data to check filters
+                    df = fetcher.get_stock_data(sym, period='5d')
+                    if not df.empty:
+                        last_close = df['Close'].iloc[-1]
+                        avg_volume = df['Volume'].mean() / 1_000_000  # Convert to millions
+                        
+                        if (avg_volume >= min_volume and 
+                            min_price <= last_close <= max_price):
+                            filtered_symbols.append(sym)
+                except Exception:
+                    pass  # Skip symbols that fail
+        
+        if not filtered_symbols:
+            st.warning("No symbols match the filter criteria.")
+            return
+        
+        st.info(f"Scanning {len(filtered_symbols)}/{len(symbols)} symbols that match filters...")
+        
+        res = scanner.scan_watchlist(filtered_symbols)
         
         # Display as TV list
         for sym, sigs in res.items():
@@ -898,6 +935,159 @@ def run_opportunity_page(default_symbols):
                     else:
                         st.warning("⚠️ Telegram not configured. Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env")
 
+def run_paper_trading_page(default_symbols):
+    """Paper Trading - Simulate trades without real money."""
+    st.title("📄 Paper Trading")
+    st.markdown("Practice trading with virtual money. Track your performance!")
+    
+    # Initialize paper account
+    if 'paper_account' not in st.session_state:
+        st.session_state.paper_account = PaperAccount(
+            initial_balance=100000.0,
+            commission_per_trade=0.0
+        )
+    
+    account = st.session_state.paper_account
+    
+    # Fetch current prices for positions
+    fetcher = DataFetcher()
+    if account.positions:
+        prices = {}
+        for symbol in account.positions.keys():
+            price = fetcher.get_current_price(symbol)
+            if price:
+                prices[symbol] = price
+        account.update_prices(prices)
+    
+    # Get metrics
+    metrics = account.get_metrics()
+    
+    # Account Summary
+    st.subheader("💰 Account Summary")
+    c1, c2, c3, c4 = st.columns(4)
+    
+    with c1:
+        display_tv_card("Total Value", f"${metrics['total_value']:,.2f}")
+    with c2:
+        ret_color = "#089981" if metrics['total_return_pct'] >= 0 else "#f23645"
+        st.markdown(f"""
+        <div class="tv-card">
+            <div class="tv-card-title">Total Return</div>
+            <div class="tv-card-value" style="color:{ret_color};">{metrics['total_return_pct']:+.2f}%</div>
+        </div>
+        """, unsafe_allow_html=True)
+    with c3:
+        display_tv_card("Cash", f"${metrics['cash']:,.2f}")
+    with c4:
+        wr_color = "#089981" if metrics['win_rate'] >= 50 else "#f23645"
+        st.markdown(f"""
+        <div class="tv-card">
+            <div class="tv-card-title">Win Rate</div>
+            <div class="tv-card-value" style="color:{wr_color};">{metrics['win_rate']:.0f}%</div>
+            <div class="tv-card-delta">{metrics['winning_trades']}/{metrics['total_trades']} wins</div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # Two columns: Positions and Trade Form
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.subheader("📊 Open Positions")
+        
+        if account.positions:
+            pos_data = []
+            for symbol, pos in account.positions.items():
+                pos_data.append({
+                    "Symbol": symbol,
+                    "Qty": pos.quantity,
+                    "Avg Entry": pos.avg_entry_price,
+                    "Current": pos.current_price,
+                    "Market Value": pos.market_value,
+                    "P&L $": pos.unrealized_pnl,
+                    "P&L %": pos.unrealized_pnl_pct
+                })
+            
+            df_pos = pd.DataFrame(pos_data)
+            
+            st.dataframe(
+                df_pos,
+                column_config={
+                    "Symbol": st.column_config.TextColumn("Ticker"),
+                    "Qty": st.column_config.NumberColumn("Shares", format="%d"),
+                    "Avg Entry": st.column_config.NumberColumn("Entry Price", format="$%.2f"),
+                    "Current": st.column_config.NumberColumn("Current Price", format="$%.2f"),
+                    "Market Value": st.column_config.NumberColumn("Value", format="$%.2f"),
+                    "P&L $": st.column_config.NumberColumn("P&L ($)", format="$%.2f"),
+                    "P&L %": st.column_config.NumberColumn("P&L (%)", format="%.2f%%"),
+                },
+                hide_index=True,
+                use_container_width=True
+            )
+        else:
+            st.info("No open positions. Execute a trade to get started!")
+        
+        # Trade History
+        st.markdown("### 📜 Recent Trades")
+        if account.trades:
+            recent_trades = account.trades[-10:][::-1]  # Last 10, reversed
+            trade_data = []
+            for t in recent_trades:
+                trade_data.append({
+                    "Time": datetime.fromisoformat(t.timestamp).strftime("%m/%d %H:%M"),
+                    "Symbol": t.symbol,
+                    "Side": t.side.upper(),
+                    "Qty": t.quantity,
+                    "Price": f"${t.price:.2f}",
+                    "Total": f"${t.total_cost:.2f}"
+                })
+            st.dataframe(pd.DataFrame(trade_data), hide_index=True, use_container_width=True)
+        else:
+            st.info("No trades yet.")
+    
+    with col2:
+        st.subheader("⚡ Execute Trade")
+        
+        with st.form("trade_form"):
+            symbol = st.selectbox("Symbol", default_symbols + list(account.positions.keys()))
+            side = st.radio("Side", ["BUY", "SELL"], horizontal=True)
+            quantity = st.number_input("Quantity", min_value=1, value=10)
+            
+            # Get current price
+            current_price = fetcher.get_current_price(symbol)
+            if current_price:
+                st.info(f"Current Price: ${current_price:.2f}")
+                price = st.number_input("Price", value=float(current_price), min_value=0.01)
+            else:
+                price = st.number_input("Price", value=100.0, min_value=0.01)
+            
+            # Calculate preview
+            total = quantity * price
+            st.markdown(f"**Total:** ${total:,.2f}")
+            
+            if st.form_submit_button("Execute Trade", type="primary", use_container_width=True):
+                order_side = OrderSide.BUY if side == "BUY" else OrderSide.SELL
+                success, msg = account.execute_trade(
+                    symbol=symbol,
+                    side=order_side,
+                    quantity=quantity,
+                    price=price
+                )
+                
+                if success:
+                    st.success(msg)
+                    st.rerun()
+                else:
+                    st.error(msg)
+        
+        # Reset button
+        st.markdown("---")
+        if st.button("🔄 Reset Account", help="Reset to $100k"):
+            account.reset()
+            st.success("Account reset!")
+            st.rerun()
+
 # --- Main App ---
 
 def main():
@@ -915,6 +1105,7 @@ def main():
         "⚡ Scanner", 
         "🔎 Screeners", 
         "🏆 Investors",
+        "📄 Paper Trading",
         "🧪 Backtest", 
         "💼 Portfolio"
     ]
@@ -937,6 +1128,8 @@ def main():
         run_charts_page(default_symbols)
     elif menu == "🏆 Investors":
         run_investors_page(default_symbols)
+    elif menu == "📄 Paper Trading":
+        run_paper_trading_page(default_symbols)
     elif menu == "🧪 Backtest":
         st.title("Strategy Tester")
         run_single_stock_page(default_symbols) # Placeholder for demo
